@@ -105,14 +105,17 @@ Doorkeeper.configure do
 end
 
 Doorkeeper::JWT.configure do
-  # Set the payload for the JWT token. This should contain unique information
-  # about the user.
-  # Defaults to a randomly generated token in a hash
-  # { token: "RANDOM-TOKEN" }
   token_payload do |opts|
     user = User.find(opts[:resource_owner_id])
+    iat = Time.now.to_i
+    exp = iat + (2 * 3600) # yeah, this needs externalizing right here
+    jti_raw = [ENV['JWT_SECRET_KEY'], iat].join(':').to_s
+    jti = Digest::MD5.hexdigest(jti_raw)
 
     {
+      exp: exp,
+      iat: iat,
+      jti: jti,
       user: {
         id: user.id,
         email: user.email
@@ -123,7 +126,7 @@ Doorkeeper::JWT.configure do
   # Set the encryption secret. This would be shared with any other applications
   # that should be able to read the payload of the token.
   # Defaults to "secret"
-  secret_key "DefaultSecret"
+  secret_key ENV['JWT_SECRET_KEY']
 
   # If you want to use RS* encoding specify the path to the RSA key
   # to use for signing.
@@ -133,5 +136,5 @@ Doorkeeper::JWT.configure do
   # Specify encryption type. Supports any algorithim in
   # https://github.com/progrium/ruby-jwt
   # defaults to nil
-  encryption_method :hs512
+  encryption_method :hs256
 end
